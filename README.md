@@ -92,6 +92,66 @@ GET /api/incidents
 PUT /api/incidents/:id/resolve
 ```
 
+## Web application
+
+The lab 3 web application is located in `web`.
+
+Run the backend first:
+
+```powershell
+npm install
+docker compose up -d postgres
+npm run migration:run
+npm run dev
+```
+
+Run the web application:
+
+```powershell
+cd web
+Copy-Item .env.example .env
+npm install
+npm run dev
+```
+
+The web app uses this env variable:
+
+```text
+VITE_API_BASE_URL=http://localhost:3000
+```
+
+Implemented web pages:
+
+```text
+Login
+Dashboard
+Shipments
+Shipment details
+Cargo
+Containers
+Incidents
+Event logs
+Admin
+```
+
+Role behavior:
+
+```text
+observer - read-only operational data
+operator - cargo, containers, shipments status actions and incident resolve
+admin - all operator features plus users, event logs, export/import/backup
+```
+
+Admin data endpoints added for lab 3:
+
+```text
+GET  /api/admin/data/export
+GET  /api/admin/data/backup
+POST /api/admin/data/import
+```
+
+`POST /api/admin/data/import` is intended for development/testing. It merges supported operational tables (`cargo`, `containers`, `shipments`, `telemetryRecords`, `incidents`) and skips `users` and `eventLogs` to avoid importing passwords or audit history.
+
 ## IoT endpoints
 
 ```text

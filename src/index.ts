@@ -17,6 +17,7 @@ import { incidentsRouter } from './routers/incidents/incidents.router';
 import { telemetryRouter } from './routers/telemetry/telemetry.router';
 import { eventsRouter } from './routers/events/events.router';
 import { reportsRouter } from './routers/reports/reports.router';
+import { adminDataRouter } from './routers/admin-data/admin-data.router';
 import { errorHandler, notFoundHandler } from './middlewares/error/error.middleware';
 
 const app = express();
@@ -41,6 +42,7 @@ app.use('/api/incidents', incidentsRouter);
 app.use('/api/telemetry', telemetryRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/admin/data', adminDataRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

@@ -4,8 +4,8 @@ import { EventLog } from '../../entities/event-log/event-log.entity';
 
 const eventLogRepository = AppDataSource.getRepository(EventLog);
 
-export type EntityType = 'user' | 'cargo' | 'container' | 'shipment' | 'incident';
-export type ActionType = 'create' | 'update' | 'delete' | 'status_change' | 'resolve';
+export type EntityType = 'user' | 'cargo' | 'container' | 'shipment' | 'incident' | 'backup';
+export type ActionType = 'create' | 'update' | 'delete' | 'status_change' | 'resolve' | 'export' | 'import';
 
 export interface LogEventData {
   action: ActionType;

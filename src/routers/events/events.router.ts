@@ -20,13 +20,13 @@ router.use(authMiddleware);
  *         name: entityType
  *         schema:
  *           type: string
- *           enum: [user, cargo, container, shipment, incident]
+ *           enum: [user, cargo, container, shipment, incident, backup]
  *         description: Filter by entity type
  *       - in: query
  *         name: action
  *         schema:
  *           type: string
- *           enum: [create, update, delete, status_change, resolve]
+ *           enum: [create, update, delete, status_change, resolve, export, import]
  *         description: Filter by action type
  *       - in: query
  *         name: userId
