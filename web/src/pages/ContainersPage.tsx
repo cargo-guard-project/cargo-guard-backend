@@ -1,19 +1,22 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
-import type { Container, ContainerStatus } from '../api/types';
+import type { Container, ContainerStatus, Shipment, ShipmentStatus } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../components/State';
 import { getStatusLabel, StatusBadge } from '../components/StatusBadge';
 import { useLanguage } from '../i18n/LanguageContext';
+import { getDeleteErrorMessage } from '../utils/deleteErrors';
 
 const statuses: ContainerStatus[] = ['available', 'in_use', 'maintenance', 'retired'];
+const blockingShipmentStatuses: ShipmentStatus[] = ['planned', 'in_progress'];
 const emptyContainer: Partial<Container> = { serialNumber: '', name: '', status: 'available' };
 
 export function ContainersPage() {
   const { t, language, locale, formatDate } = useLanguage();
   const { canOperate } = useAuth();
   const [items, setItems] = useState<Container[]>([]);
+  const [shipments, setShipments] = useState<Shipment[]>([]);
   const [form, setForm] = useState<Partial<Container>>(emptyContainer);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,8 +24,11 @@ export function ContainersPage() {
 
   const load = () => {
     setLoading(true);
-    api.containers()
-      .then(setItems)
+    Promise.all([api.containers(), api.shipments()])
+      .then(([containerData, shipmentData]) => {
+        setItems(containerData);
+        setShipments(shipmentData);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load containers'))
       .finally(() => setLoading(false));
   };
@@ -30,6 +36,20 @@ export function ContainersPage() {
   useEffect(load, []);
 
   const sorted = useMemo(() => [...items].sort((a, b) => a.name.localeCompare(b.name, locale)), [items, locale]);
+
+  const activeShipmentByContainer = useMemo(() => {
+    const used = new Map<number, Shipment>();
+
+    shipments
+      .filter((shipment) => blockingShipmentStatuses.includes(shipment.status))
+      .forEach((shipment) => {
+        if (!used.has(shipment.containerId)) {
+          used.set(shipment.containerId, shipment);
+        }
+      });
+
+    return used;
+  }, [shipments]);
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -49,7 +69,7 @@ export function ContainersPage() {
       if (form.id === container.id) setForm(emptyContainer);
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('deleteFailed'));
+      setError(getDeleteErrorMessage(t, 'container'));
     }
   };
 
@@ -63,11 +83,11 @@ export function ContainersPage() {
   const shortApiKey = (apiKey?: string) => apiKey ? `${apiKey.slice(0, 9)}...${apiKey.slice(-5)}` : '-';
 
   if (loading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
 
   return (
     <>
       <PageHeader title={t('containers')} />
+      {error && <ErrorState message={error} />}
       {canOperate && (
         <form className="card form-grid" onSubmit={save}>
           <label className="field">
@@ -108,7 +128,21 @@ export function ContainersPage() {
                 <tr key={container.id}>
                   <td>{container.name}</td>
                   <td>{container.serialNumber}</td>
-                  <td><StatusBadge value={container.status} /></td>
+                  <td>
+                    {activeShipmentByContainer.has(container.id) ? (
+                      <div className="context-line">
+                        <StatusBadge value="in_use" />
+                        <small>
+                          {t('usedInShipment')}:{' '}
+                          {activeShipmentByContainer.get(container.id)?.origin}
+                          {' -> '}
+                          {activeShipmentByContainer.get(container.id)?.destination}
+                        </small>
+                      </div>
+                    ) : (
+                      <StatusBadge value={container.status} />
+                    )}
+                  </td>
                   <td>{container.lastTemperature ?? '-'} C / {container.lastHumidity ?? '-'}%<br /><small>{formatDate(container.lastUpdatedAt)}</small></td>
                   <td>
                     <div className="api-key-cell">

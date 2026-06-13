@@ -5,6 +5,7 @@ import { RoleGate } from '../components/RoleGate';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../components/State';
 import { useLanguage } from '../i18n/LanguageContext';
+import { getDeleteErrorMessage } from '../utils/deleteErrors';
 
 const emptyUser: Partial<User> & { password?: string } = {
   email: '',
@@ -14,6 +15,16 @@ const emptyUser: Partial<User> & { password?: string } = {
 };
 
 const roles: UserRole[] = ['admin', 'operator', 'observer'];
+
+function downloadJson(filename: string, payload: unknown) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export function AdminPage() {
   const { t, locale, formatDate } = useLanguage();
@@ -60,7 +71,9 @@ export function AdminPage() {
 
   const exportData = async () => {
     try {
-      setExportPayload(await api.exportData());
+      const payload = await api.exportData();
+      setExportPayload(payload);
+      downloadJson(`cargoguard-export-${new Date().toISOString()}.json`, payload);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('actionFailed'));
     }
@@ -98,7 +111,7 @@ export function AdminPage() {
       if (form.id === user.id) setForm(emptyUser);
       loadUsers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('deleteFailed'));
+      setError(getDeleteErrorMessage(t, 'user'));
     }
   };
 
@@ -107,7 +120,7 @@ export function AdminPage() {
       <PageHeader title={t('admin')} />
       {loading && <LoadingState />}
       {error && <ErrorState message={error} />}
-      {!loading && !error && (
+      {!loading && (
         <div className="admin-grid">
           <section className="card">
             <h2>{t('users')}</h2>
@@ -167,13 +180,16 @@ export function AdminPage() {
           </section>
           <section className="card">
             <h2>{t('exportData')}</h2>
-            <div className="button-row">
-              <button className="button" onClick={exportData}>{t('exportData')}</button>
-              <button className="button secondary" onClick={downloadBackup}>{t('downloadBackup')}</button>
-            </div>
+            <p className="muted">{t('exportHint')}</p>
+            <button className="button" onClick={exportData}>{t('exportData')}</button>
             {exportPayload && (
               <pre className="json-preview">{JSON.stringify(exportPayload, null, 2)}</pre>
             )}
+          </section>
+          <section className="card">
+            <h2>{t('backup')}</h2>
+            <p className="muted">{t('backupHint')}</p>
+            <button className="button secondary" onClick={downloadBackup}>{t('downloadBackup')}</button>
           </section>
           <section className="card">
             <h2>{t('importData')}</h2>

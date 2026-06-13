@@ -7,9 +7,11 @@ import { PageHeader } from '../components/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../components/State';
 import { StatusBadge } from '../components/StatusBadge';
 import { useLanguage } from '../i18n/LanguageContext';
+import { getDeleteErrorMessage } from '../utils/deleteErrors';
 
 const shipmentStatuses: Array<'all' | ShipmentStatus> = ['all', 'planned', 'in_progress', 'completed', 'cancelled'];
 const editableShipmentStatuses: ShipmentStatus[] = ['planned', 'in_progress', 'completed', 'cancelled'];
+const blockingShipmentStatuses: ShipmentStatus[] = ['planned', 'in_progress'];
 
 const statusTranslationKey: Record<'all' | ShipmentStatus, 'all' | 'planned' | 'inProgress' | 'completed' | 'cancelled'> = {
   all: 'all',
@@ -86,6 +88,31 @@ export function ShipmentsPage() {
       .sort((a, b) => a.origin.localeCompare(b.origin, locale));
   }, [locale, query, shipments, status]);
 
+  const busyResourceIds = useMemo(() => {
+    const busyCargoIds = new Set<number>();
+    const busyContainerIds = new Set<number>();
+
+    shipments
+      .filter((shipment) => blockingShipmentStatuses.includes(shipment.status))
+      .filter((shipment) => shipment.id !== form.id)
+      .forEach((shipment) => {
+        busyCargoIds.add(shipment.cargoId);
+        busyContainerIds.add(shipment.containerId);
+      });
+
+    return { busyCargoIds, busyContainerIds };
+  }, [form.id, shipments]);
+
+  const selectableCargo = useMemo(
+    () => cargo.filter((item) => !busyResourceIds.busyCargoIds.has(item.id) || item.id === form.cargoId),
+    [busyResourceIds.busyCargoIds, cargo, form.cargoId],
+  );
+
+  const selectableContainers = useMemo(
+    () => containers.filter((container) => !busyResourceIds.busyContainerIds.has(container.id) || container.id === form.containerId),
+    [busyResourceIds.busyContainerIds, containers, form.containerId],
+  );
+
   const saveShipment = async (event: FormEvent) => {
     event.preventDefault();
     try {
@@ -124,16 +151,16 @@ export function ShipmentsPage() {
       if (form.id === shipment.id) setForm(emptyShipment);
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('deleteFailed'));
+      setError(getDeleteErrorMessage(t, 'shipment'));
     }
   };
 
   if (loading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
 
   return (
     <>
       <PageHeader title={t('shipments')} />
+      {error && <ErrorState message={error} />}
       {canOperate && (
         <form className="card form-grid" onSubmit={saveShipment}>
           <label className="field">
@@ -160,7 +187,7 @@ export function ShipmentsPage() {
               required
             >
               <option value="">{t('cargoItem')}</option>
-              {cargo.map((item) => (
+              {selectableCargo.map((item) => (
                 <option key={item.id} value={item.id}>{item.name}</option>
               ))}
             </select>
@@ -173,7 +200,7 @@ export function ShipmentsPage() {
               required
             >
               <option value="">{t('container')}</option>
-              {containers.map((container) => (
+              {selectableContainers.map((container) => (
                 <option key={container.id} value={container.id}>{container.name} / {container.serialNumber}</option>
               ))}
             </select>

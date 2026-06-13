@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../components/State';
 import { useLanguage } from '../i18n/LanguageContext';
+import { getDeleteErrorMessage } from '../utils/deleteErrors';
 
 const emptyCargo: Partial<Cargo> = {
   name: '',
@@ -56,16 +57,16 @@ export function CargoPage() {
       if (form.id === cargo.id) setForm(emptyCargo);
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('deleteFailed'));
+      setError(getDeleteErrorMessage(t, 'cargo'));
     }
   };
 
   if (loading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
 
   return (
     <>
       <PageHeader title={t('cargo')} />
+      {error && <ErrorState message={error} />}
       {canOperate && (
         <form className="card form-grid cargo-form" onSubmit={save}>
           <label className="field">
