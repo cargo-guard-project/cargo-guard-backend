@@ -1,4 +1,7 @@
 import { DataSource } from 'typeorm';
+import path from 'path';
+
+const runtimeExtension = __filename.endsWith('.ts') ? 'ts' : 'js';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -9,7 +12,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'cargoguard',
   synchronize: false,
   logging: process.env.NODE_ENV === 'development',
-  entities: ['src/entities/**/*.entity.ts'],
-  migrations: ['src/migrations/**/*.ts'],
+  entities: [path.join(__dirname, '..', 'entities', '**', `*.entity.${runtimeExtension}`)],
+  migrations: [path.join(__dirname, '..', 'migrations', `*.${runtimeExtension}`)],
   subscribers: [],
 });
