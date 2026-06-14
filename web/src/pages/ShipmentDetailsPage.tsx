@@ -19,6 +19,9 @@ export function ShipmentDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
+  const [requestingTelemetry, setRequestingTelemetry] = useState(false);
+  const [resolvingIncidentId, setResolvingIncidentId] = useState<number | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -45,11 +48,41 @@ export function ShipmentDetailsPage() {
 
   const updateStatus = async (action: 'start' | 'complete' | 'cancel') => {
     setActionError('');
+    setActionSuccess('');
     try {
       await api.updateShipmentStatus(shipmentId, action);
       await load();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : t('actionFailed'));
+    }
+  };
+
+  const requestTelemetry = async () => {
+    setActionError('');
+    setActionSuccess('');
+    setRequestingTelemetry(true);
+    try {
+      await api.requestShipmentTelemetry(shipmentId);
+      await load();
+      setActionSuccess(t('telemetryReceived'));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : t('requestTelemetryFailed'));
+    } finally {
+      setRequestingTelemetry(false);
+    }
+  };
+
+  const resolveIncident = async (incidentId: number) => {
+    setActionError('');
+    setActionSuccess('');
+    setResolvingIncidentId(incidentId);
+    try {
+      await api.resolveIncident(incidentId);
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : t('actionFailed'));
+    } finally {
+      setResolvingIncidentId(null);
     }
   };
 
@@ -68,22 +101,35 @@ export function ShipmentDetailsPage() {
     complete: t('complete'),
     cancel: t('cancel'),
   };
+  const canRequestTelemetry = shipment.status === 'in_progress';
 
   return (
     <>
       <PageHeader
         title={`${t('shipmentDetails')} #${shipment.id}`}
-        actions={canOperate && statusActions.length > 0 && (
-          <div className="button-row">
-            {statusActions.map((action) => (
-              <button className="button secondary" key={action} onClick={() => updateStatus(action)}>
-                {actionLabels[action]}
+        actions={canOperate && (
+          <div className="page-action-stack">
+            <div className="button-row">
+              {statusActions.map((action) => (
+                <button className="button secondary" key={action} onClick={() => updateStatus(action)}>
+                  {actionLabels[action]}
+                </button>
+              ))}
+              <button
+                className="button"
+                disabled={!canRequestTelemetry || requestingTelemetry}
+                onClick={requestTelemetry}
+                type="button"
+              >
+                {requestingTelemetry ? `${t('loading')}...` : t('requestTelemetry')}
               </button>
-            ))}
+            </div>
+            {!canRequestTelemetry && <small className="muted">{t('telemetryActiveOnly')}</small>}
           </div>
         )}
       />
       {actionError && <div className="card inline-error">{actionError}</div>}
+      {actionSuccess && <div className="card inline-success">{actionSuccess}</div>}
       <section className="grid two">
         <article className="card">
           <h2>{t('route')}</h2>
@@ -115,8 +161,24 @@ export function ShipmentDetailsPage() {
           <h2>{t('incidents')}</h2>
           {incidents.length === 0 ? <EmptyState /> : incidents.map((incident) => (
             <div className="row-card" key={incident.id}>
-              <span>{incident.description}</span>
-              <StatusBadge value={incident.severity} />
+              <div className="context-line">
+                <strong>{incident.description}</strong>
+                <span className="muted">{formatDate(incident.createdAt)}</span>
+                {incident.resolvedAt && <span className="muted">{t('resolvedAt')}: {formatDate(incident.resolvedAt)}</span>}
+              </div>
+              <div className="button-row">
+                <StatusBadge value={incident.severity} />
+                {canOperate && !incident.resolvedAt && (
+                  <button
+                    className="button small"
+                    disabled={resolvingIncidentId === incident.id}
+                    onClick={() => resolveIncident(incident.id)}
+                    type="button"
+                  >
+                    {resolvingIncidentId === incident.id ? `${t('loading')}...` : t('resolve')}
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </article>

@@ -7,8 +7,6 @@ import { config } from '../../config';
 
 const userRepository = AppDataSource.getRepository(User);
 
-const activeRefreshTokens = new Set<string>();
-
 export interface RegisterDto {
   email: string;
   password: string;
@@ -61,10 +59,6 @@ export const userAuthService = {
   },
 
   async refresh(refreshToken: string): Promise<TokenPair> {
-    if (!activeRefreshTokens.has(refreshToken)) {
-      throw new Error('Invalid refresh token');
-    }
-
     try {
       const decoded = jwt.verify(refreshToken, config.jwt.secret) as JwtPayload & { type: string };
       if (decoded.type !== 'refresh') {
@@ -76,16 +70,14 @@ export const userAuthService = {
         throw new Error('User not found');
       }
 
-      activeRefreshTokens.delete(refreshToken);
       return this.generateTokens(user);
     } catch {
-      activeRefreshTokens.delete(refreshToken);
       throw new Error('Invalid refresh token');
     }
   },
 
-  async logout(refreshToken: string): Promise<void> {
-    activeRefreshTokens.delete(refreshToken);
+  async logout(_refreshToken: string): Promise<void> {
+    // Refresh tokens are JWT-based and do not rely on per-process memory.
   },
 
   generateTokens(user: User): TokenPair {
@@ -100,8 +92,6 @@ export const userAuthService = {
 
     const accessToken = jwt.sign(payload, config.jwt.secret, accessOptions);
     const refreshToken = jwt.sign({ ...payload, type: 'refresh' }, config.jwt.secret, refreshOptions);
-
-    activeRefreshTokens.add(refreshToken);
 
     return { accessToken, refreshToken };
   },

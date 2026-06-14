@@ -1,0 +1,82 @@
+name: cargoguard-scale-1
+
+x-backend-environment: &backend-environment
+  NODE_ENV: production
+  PORT: 3000
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_USERNAME: postgres
+  DB_PASSWORD: postgres
+  DB_DATABASE: cargoguard
+  JWT_SECRET: ${JWT_SECRET:-dev-secret-key}
+  JWT_EXPIRES_IN: 24h
+  JWT_REFRESH_EXPIRES_IN: 7d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cargoguard
+    ports:
+      - "${POSTGRES_SCALE_1_PORT:-5434}:5432"
+    volumes:
+      - postgres-scale-1-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cargoguard-scale-1-network
+
+  migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run migration:run:prod
+    environment:
+      <<: *backend-environment
+      INSTANCE_ID: migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - cargoguard-scale-1-network
+
+  backend-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    expose:
+      - "3000"
+    environment:
+      <<: *backend-environment
+      INSTANCE_ID: backend-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    networks:
+      - cargoguard-scale-1-network
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./nginx/nginx.single.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend-1
+    networks:
+      - cargoguard-scale-1-network
+
+volumes:
+  postgres-scale-1-data:
+
+networks:
+  cargoguard-scale-1-network:
+    driver: bridge

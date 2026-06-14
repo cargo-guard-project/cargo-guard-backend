@@ -52,7 +52,7 @@ function determineSeverity(value: number, min: number, max: number): IncidentSev
 }
 
 export const telemetryService = {
-  async processTelemetry(data: TelemetryData): Promise<{ saved: boolean; incidents: Incident[] }> {
+  async processTelemetry(data: TelemetryData): Promise<{ saved: boolean; telemetry: TelemetryRecord; incidents: Incident[] }> {
     const container = await containerRepository.findOne({
       where: { serialNumber: data.serialNumber },
     });
@@ -118,7 +118,7 @@ export const telemetryService = {
       }
     }
 
-    return { saved: true, incidents };
+    return { saved: true, telemetry, incidents };
   },
 
   async processDoorEvent(data: DoorEventData): Promise<{ processed: boolean; incident?: Incident }> {
@@ -154,7 +154,7 @@ export const telemetryService = {
     return { processed: true };
   },
 
-  async processTelemetryForContainer(data: TelemetryDataForContainer): Promise<{ saved: boolean; incidents: Incident[] }> {
+  async processTelemetryForContainer(data: TelemetryDataForContainer): Promise<{ saved: boolean; telemetry: TelemetryRecord; incidents: Incident[] }> {
     const { container, temperature, humidity } = data;
 
     const telemetry = telemetryRepository.create({
@@ -214,7 +214,7 @@ export const telemetryService = {
       }
     }
 
-    return { saved: true, incidents };
+    return { saved: true, telemetry, incidents };
   },
 
   async processDoorEventForContainer(data: DoorEventDataForContainer): Promise<{ processed: boolean; incident?: Incident }> {

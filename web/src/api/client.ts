@@ -5,6 +5,7 @@ import type {
   EventLog,
   ExportPayload,
   Incident,
+  RequestTelemetryResult,
   Shipment,
   TelemetryRecord,
   TokenPair,
@@ -151,6 +152,8 @@ export const api = {
     apiRequest<TelemetryRecord[]>(`/api/shipments/${id}/telemetry?limit=${limit}`),
   updateShipmentStatus: (id: number, action: 'start' | 'complete' | 'cancel') =>
     apiRequest<Shipment>(`/api/shipments/${id}/${action}`, { method: 'PUT' }),
+  requestShipmentTelemetry: (id: number) =>
+    apiRequest<RequestTelemetryResult>(`/api/shipments/${id}/request-telemetry`, { method: 'POST' }),
   incidents: () => apiRequest<Incident[]>('/api/incidents'),
   resolveIncident: (id: number) => apiRequest<Incident>(`/api/incidents/${id}/resolve`, { method: 'PUT' }),
   eventLogs: () => apiRequest<EventLog[]>('/api/events?limit=100'),

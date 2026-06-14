@@ -342,6 +342,11 @@ code {
   font-size: 13px;
 }
 
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .chip.selected {
   color: #fff;
   background: #165c63;
@@ -435,6 +440,16 @@ code {
   color: #b3261e;
 }
 
+.inline-success {
+  color: #165c63;
+}
+
+.page-action-stack {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
 .login-screen {
   display: grid;
   min-height: 100vh;
@@ -489,5 +504,9 @@ code {
   .topbar-actions {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .page-action-stack {
+    justify-items: start;
   }
 }

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../../middlewares/auth/auth.middleware';
 import { isOperator, isObserver } from '../../guards/role.guard';
 import { shipmentsService } from '../../services/shipments/shipments.service';
+import { telemetryService } from '../../services/telemetry/telemetry.service';
 import { eventLogService } from '../../services/event-log/event-log.service';
 import { validateBody } from '../../middlewares/validate/validate.middleware';
 import { CreateShipmentDto, UpdateShipmentDto } from '../../dto';
@@ -458,6 +459,88 @@ router.put('/:id/cancel', isOperator, async (req: Request, res: Response) => {
     res.json({ success: true, data: shipment });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to cancel shipment';
+    res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/shipments/{id}/request-telemetry:
+ *   post:
+ *     tags: [Shipments]
+ *     summary: Request a new telemetry reading for an active shipment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Telemetry received and processed
+ *       400:
+ *         description: Shipment is not active or cannot receive telemetry
+ *       404:
+ *         description: Shipment not found
+ */
+router.post('/:id/request-telemetry', isOperator, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const shipment = await shipmentsService.findById(id);
+
+    if (!shipment) {
+      res.status(404).json({ success: false, error: 'Shipment not found' });
+      return;
+    }
+
+    if (shipment.status !== 'in_progress') {
+      res.status(400).json({
+        success: false,
+        error: 'Telemetry can be requested only for active shipments',
+      });
+      return;
+    }
+
+    if (!shipment.cargo || !shipment.container) {
+      res.status(400).json({ success: false, error: 'Shipment cargo or container data is missing' });
+      return;
+    }
+
+    const temperature = Number(shipment.cargo.temperatureMax) + 3;
+    const humidity = Number(shipment.cargo.humidityMax) + 10;
+
+    const result = await telemetryService.processTelemetryForContainer({
+      container: shipment.container,
+      temperature,
+      humidity,
+    });
+
+    await eventLogService.log({
+      action: 'update',
+      entityType: 'shipment',
+      entityId: id,
+      userId: req.user?.userId,
+      details: {
+        reason: 'request_telemetry',
+        containerId: shipment.containerId,
+        temperature,
+        humidity,
+        incidentsCreated: result.incidents.length,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        telemetry: result.telemetry,
+        incident: result.incidents[0] || null,
+        incidents: result.incidents,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to request telemetry';
     res.status(400).json({ success: false, error: message });
   }
 });

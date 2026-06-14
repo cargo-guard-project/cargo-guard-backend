@@ -91,6 +91,12 @@ export interface TelemetryRecord {
   containerId: number;
 }
 
+export interface RequestTelemetryResult {
+  telemetry: TelemetryRecord;
+  incident?: Incident | null;
+  incidents: Incident[];
+}
+
 export interface EventLog {
   id: number;
   action: string;

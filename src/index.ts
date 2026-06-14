@@ -22,6 +22,7 @@ import { errorHandler, notFoundHandler } from './middlewares/error/error.middlew
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const INSTANCE_ID = process.env.INSTANCE_ID || 'local';
 
 app.use(cors());
 app.use(express.json());
@@ -29,7 +30,11 @@ app.use(express.json());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    instanceId: INSTANCE_ID,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.use('/api/auth', authRouter);
@@ -52,7 +57,7 @@ AppDataSource.initialize()
     console.log('Database connected');
 
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`Server running on port ${PORT} as ${INSTANCE_ID}`);
     });
   })
   .catch((error) => {
